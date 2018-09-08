@@ -1,8 +1,10 @@
 package automail;
 
 import java.util.*;
-
-import strategies.IMailPool;
+import mailItems.*;
+import strategies.*;
+import util.*;
+import robots.*;
 
 /**
  * This class generates the mail

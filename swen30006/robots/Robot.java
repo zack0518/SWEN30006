@@ -1,11 +1,18 @@
-package automail;
+package robots;
 
 import exceptions.ExcessiveDeliveryException;
 import exceptions.ItemTooHeavyException;
+import mailItems.MailItem;
 import exceptions.FragileItemBrokenException;
 import strategies.IMailPool;
+
 import java.util.Map;
 import java.util.TreeMap;
+
+import automail.IMailDelivery;
+import util.Building;
+import util.Clock;
+import util.robotSetting;;
 
 /**
  * The robot delivers mail!
@@ -18,15 +25,13 @@ public class Robot {
     /** Possible states the robot can be in */
     public enum RobotState { DELIVERING, WAITING, RETURNING }
     public RobotState current_state;
-    private int current_floor;
-    private int destination_floor;
-    private IMailPool mailPool;
-    private boolean receivedDispatch;
-    private boolean strong;
-    
-    private MailItem deliveryItem;
-    
-    private int deliveryCounter;
+    protected int current_floor;
+    protected int destination_floor;
+    protected IMailPool mailPool;
+    protected boolean receivedDispatch;
+    protected util.robotSetting.RobotType type;
+    protected MailItem deliveryItem;
+    protected int deliveryCounter;
     
 
     /**
@@ -37,25 +42,29 @@ public class Robot {
      * @param mailPool is the source of mail items
      * @param strong is whether the robot can carry heavy items
      */
-    public Robot(IMailDelivery delivery, IMailPool mailPool, boolean strong){
+    public Robot(IMailDelivery delivery, IMailPool mailPool){
     	id = "R" + hashCode();
         // current_state = RobotState.WAITING;
     	current_state = RobotState.RETURNING;
         current_floor = Building.MAILROOM_LOCATION;
-        tube = new StorageTube();
         this.delivery = delivery;
         this.mailPool = mailPool;
         this.receivedDispatch = false;
-        this.strong = strong;
         this.deliveryCounter = 0;
+        setConfig();
+    }
+    
+    public void setConfig() {
+        type = robotSetting.RobotType.Standard;
+        tube = new StorageTube(robotSetting.STANDARD_CAPACITY);
     }
     
     public void dispatch() {
     	receivedDispatch = true;
     }
     
-    public boolean isStrong() {
-    	return strong;
+	public util.robotSetting.RobotType getRobotType() {
+    	return type;
     }
 
     /**
@@ -119,10 +128,9 @@ public class Robot {
     /**
      * Sets the route for the robot
      */
-    private void setRoute() throws ItemTooHeavyException{
+    protected void setRoute() throws ItemTooHeavyException{
         /** Pop the item from the StorageUnit */
         deliveryItem = tube.pop();
-        if (!strong && deliveryItem.weight > 2000) throw new ItemTooHeavyException(); 
         /** Set the destination floor */
         destination_floor = deliveryItem.getDestFloor();
     }
@@ -131,17 +139,17 @@ public class Robot {
      * Generic function that moves the robot towards the destination
      * @param destination the floor towards which the robot is moving
      */
-    private void moveTowards(int destination) throws FragileItemBrokenException {
+    protected void moveTowards(int destination) throws FragileItemBrokenException {
         if (deliveryItem != null && deliveryItem.getFragile() || !tube.isEmpty() && tube.peek().getFragile()) throw new FragileItemBrokenException();
         if(current_floor < destination){
-            current_floor++;
+            current_floor = current_floor + 1;
         }
         else{
-            current_floor--;
+            current_floor = current_floor - 1;
         }
     }
     
-    private String getIdTube() {
+    protected String getIdTube() {
     	return String.format("%s(%1d/%1d)", id, tube.getSize(), tube.MAXIMUM_CAPACITY);
     }
     
@@ -149,7 +157,7 @@ public class Robot {
      * Prints out the change in state
      * @param nextState the state to which the robot is transitioning
      */
-    private void changeState(RobotState nextState){
+    protected void changeState(RobotState nextState){
     	if (current_state != nextState) {
             System.out.printf("T: %3d > %7s changed from %s to %s%n", Clock.Time(), getIdTube(), current_state, nextState);
     	}
@@ -163,8 +171,8 @@ public class Robot {
 		return tube;
 	}
     
-	static private int count = 0;
-	static private Map<Integer, Integer> hashMap = new TreeMap<Integer, Integer>();
+	static protected int count = 0;
+	static protected Map<Integer, Integer> hashMap = new TreeMap<Integer, Integer>();
 
 	@Override
 	public int hashCode() {
