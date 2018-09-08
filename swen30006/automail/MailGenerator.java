@@ -10,6 +10,8 @@ import strategies.IMailPool;
 public class MailGenerator {
 
     public final int MAIL_TO_CREATE;
+    
+    private final boolean handlingFragile;
 
     private int mailCreated;
 
@@ -27,7 +29,7 @@ public class MailGenerator {
      * @param mailPool where mail items go on arrival
      * @param seed random seed for generating mail
      */
-    public MailGenerator(int mailToCreate, IMailPool mailPool, HashMap<Boolean,Integer> seed){
+    public MailGenerator(int mailToCreate, IMailPool mailPool, HashMap<Boolean,Integer> seed, boolean fragile){
         if(seed.containsKey(true)){
         	this.random = new Random((long) seed.get(true));
         }
@@ -41,25 +43,29 @@ public class MailGenerator {
         complete = false;
         allMail = new HashMap<Integer,ArrayList<MailItem>>();
         this.mailPool = mailPool;
+        handlingFragile = fragile;
     }
 
     /**
      * @return a new mail item that needs to be delivered
      */
     private MailItem generateMail(){
+    	MailItem newMailItem;
         int dest_floor = generateDestinationFloor();
         int priority_level = generatePriorityLevel();
         int arrival_time = generateArrivalTime();
         int weight = generateWeight();
+    	boolean fragile = handlingFragile && (random.nextInt(8) == 0);
         // Check if arrival time has a priority mail
         if(	(random.nextInt(6) > 0) ||  // Skew towards non priority mail
         	(allMail.containsKey(arrival_time) &&
         	allMail.get(arrival_time).stream().anyMatch(e -> PriorityMailItem.class.isInstance(e))))
         {
-        	return new MailItem(dest_floor,arrival_time,weight);      	
+        	newMailItem = new MailItem(dest_floor,arrival_time,weight,fragile);      	
         } else {
-        	return new PriorityMailItem(dest_floor,arrival_time,weight,priority_level);
-        }   
+        	newMailItem = new PriorityMailItem(dest_floor,arrival_time,weight,fragile,priority_level);
+        }
+        return newMailItem;
     }
 
     /**

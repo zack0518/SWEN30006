@@ -1,234 +1,117 @@
 package strategies;
 
-import java.util.ArrayList;
-import java.util.Stack;
+import java.util.LinkedList;
+import java.util.Comparator;
+import java.util.ListIterator;
+import java.util.function.Consumer;
 
-import automail.Clock;
 import automail.MailItem;
 import automail.PriorityMailItem;
 import automail.Robot;
 import automail.StorageTube;
 import exceptions.TubeFullException;
+import exceptions.FragileItemBrokenException;
 
-import java.util.List;
-import java.lang.Object;
-
-public class MyMailPool implements IMailPool{
-
-//	the most important change is I created two new stack to store Mail_itme which are too heavy( weight > 2000)
-	private Stack<MailItem> nonPriorityPool;
-	private Stack<MailItem> priorityPool;
-	private Stack<MailItem> nonPriorityPoolStrong;
-	private Stack<MailItem> priorityPoolStrong;
+public class MyMailPool implements IMailPool {
+	private class Item {
+		int priority;
+		int destination;
+		boolean heavy;
+		MailItem mailItem;
+		// Use stable sort to keep arrival time relative positions
+		
+		public Item(MailItem mailItem) {
+			priority = (mailItem instanceof PriorityMailItem) ? ((PriorityMailItem) mailItem).getPriorityLevel() : 1;
+			heavy = mailItem.getWeight() >= 2000;
+			destination = mailItem.getDestFloor();
+			this.mailItem = mailItem;
+		}
+	}
 	
+	public class ItemComparator implements Comparator<Item> {
+		@Override
+		public int compare(Item i1, Item i2) {
+			int order = 0;
+			if (i1.priority < i2.priority) {
+				order = 1;
+			} else if (i1.priority > i2.priority) {
+				order = -1;
+			} else if (i1.destination < i2.destination) {
+				order = 1;
+			} else if (i1.destination > i2.destination) {
+				order = -1;
+			}
+			return order;
+		}
+	}
 	
+	private LinkedList<Item> pool;
 	private static final int MAX_TAKE = 4;
-	private Robot robot1, robot2, robot3;
-//	private List<Robot> robots;
+	private LinkedList<Robot> robots;
+	private int lightCount;
 
 	public MyMailPool(){
 		// Start empty
-		nonPriorityPool = new Stack<MailItem>();
-		priorityPool = new Stack<MailItem>();
-		nonPriorityPoolStrong = new Stack<MailItem>();
-		priorityPoolStrong = new Stack<MailItem>();
-//		robots = new ArrayList<>();
-		
+		pool = new LinkedList<Item>();
+		lightCount = 0;
+		robots = new LinkedList<Robot>();
 	}
-
-	
-//	this method to sort the mail_items in a stack, according to their arrival_time - destination_floor
-//	the basic idea is to use an assistant stack	
-	public static void sortStack(Stack<MailItem> stack) {
-		Stack<MailItem> help = new Stack<MailItem>();
-		while (!stack.isEmpty()) {
-			MailItem cur = stack.pop();		
-			double test = 2.9;
-			double time = cur.getArrivalTime() + cur.getDestFloor()*test;
-			while (!help.isEmpty() && (help.peek().getArrivalTime() + help.peek().getDestFloor()*test) > time) {
-				
-				stack.push(help.pop());
-			}
-			help.push(cur);
-		}
-		
-		while (!help.isEmpty()) {
-			stack.push(help.pop());
-		}		
-	}
-
-	
-//	this method to sort the mail_items in the tube, according to their destination_floor
-	private void sortTube(StorageTube tube) {
-		StorageTube help = new StorageTube();
-		while (!tube.isEmpty()) {
-			MailItem cur = tube.pop();
-			
-			int time = cur.getDestFloor();
-			while (!help.isEmpty() && help.peek().getDestFloor() > time) {
-			
-			
-				try {
-					tube.addItem(help.pop());
-				} catch (TubeFullException e) {
-					e.printStackTrace();
-				}
-
-			}
-			try {
-				help.addItem(cur);
-			} catch (TubeFullException e) {
-				e.printStackTrace();
-			}
-		}
-		
-		while (!help.isEmpty()) {
-			try {
-				tube.addItem(help.pop());
-			} catch (TubeFullException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-	
-	
 
 	public void addToPool(MailItem mailItem) {
-		// Check whether it has a priority or not
-		if(mailItem instanceof PriorityMailItem){
-			
-//			then check if it is an heavy mail
-			if (mailItem.getWeight() > 2000) {
-				priorityPoolStrong.push(mailItem);
-			}
-			else {
-				priorityPool.push(mailItem);
-			}
-			
-//			after add item into pool, sort the pool
-			sortStack(priorityPool);
-			sortStack(priorityPoolStrong);
-		}
-		else{
-			if (mailItem.getWeight() > 2000) {
-				nonPriorityPoolStrong.push(mailItem);
-			}
-			else {
-				nonPriorityPool.add(mailItem);
-			}
-			sortStack(nonPriorityPool);
-			sortStack(nonPriorityPoolStrong);
-		}
+		Item item = new Item(mailItem);
+		pool.add(item);
+		if (!item.heavy) lightCount++;
+		pool.sort(new ItemComparator());
 	}
-	
-//	get the size of the pool
-	private int getStackSize(Stack<MailItem> stack) {
-		return stack.size();
-	}	
 	
 	@Override
-	public void step() {
-		
-//		for (Robot robot : robots) {
-//			fillTube(robot);
-//		}
-		if (robot1 != null) fillTube(robot1);
-		if (robot2 != null) fillTube(robot2);
-		if (robot3 != null) fillTube(robot3);
-		
+	public void step() throws FragileItemBrokenException {
+		for (Robot robot: (Iterable<Robot>) robots::iterator) { fillStorageTube(robot); }
 	}
 	
-	
-
-	
-//	the idea is the weak robot only pick item from normal pool,
-//	the strong robot first pick item from heavy pool, then pick from normal pool
-	private void fillTube(Robot robot) {
-		boolean strong = robot.isStrong();	
-		if (strong) {
-			fillStrongRobot(robot);
-			fillWeakRobot(robot);
-		}
-		else {
-			fillWeakRobot(robot);
-		}
-
-	}
-	
-	
-
-//	weak robot only first pick priority pool, and then check if it can bring some non_poriority items
-	private void fillWeakRobot(Robot robot) {
+	private void fillStorageTube(Robot robot) throws FragileItemBrokenException {
 		StorageTube tube = robot.getTube();
-		try {
-			while (getStackSize(priorityPool) > 0 && tube.getSize() < MAX_TAKE) {
-				tube.addItem(priorityPool.pop());
-			}
-			while (tube.getSize() < MAX_TAKE && getStackSize(nonPriorityPool) > 0) {
-				tube.addItem(nonPriorityPool.pop());
-			}
-			if (tube.getSize() > 0 ) {
-				
-				sortTube(tube);
-				robot.dispatch();
-			}
-		} catch (TubeFullException e) {
-			e.printStackTrace();
+		StorageTube temp = new StorageTube();
+		try { // Get as many items as available or as fit
+				if (robot.isStrong()) {
+					while(temp.getSize() < MAX_TAKE && !pool.isEmpty() ) {
+						Item item = pool.remove();
+						if (!item.heavy) lightCount--;
+						temp.addItem(item.mailItem);
+					}
+				} else {
+					ListIterator<Item> i = pool.listIterator();
+					while(temp.getSize() < MAX_TAKE && lightCount > 0) {
+						Item item = i.next();
+						if (!item.heavy) {
+							temp.addItem(item.mailItem);
+							i.remove();
+							lightCount--;
+						}
+					}
+				}
+				if (temp.getSize() > 0) {
+					while (!temp.isEmpty()) tube.addItem(temp.pop());
+					robot.dispatch();
+				}
 		}
-		
-	}
-	
-	
-//	strong robot first pick item from strong_pool
-	private void fillStrongRobot(Robot robot) {
-		
-		StorageTube tube = robot.getTube();
-		try {
-			while (getStackSize(priorityPoolStrong) > 0 && tube.getSize() < MAX_TAKE) {
-				tube.addItem(priorityPoolStrong.pop());
-			}
-			while (tube.getSize() < MAX_TAKE && getStackSize(nonPriorityPoolStrong) > 0) {
-				tube.addItem(nonPriorityPoolStrong.pop());
-			}
-			if (tube.getSize() > 0) {
-				
-				sortTube(tube);
-				robot.dispatch();
-			}
-		} catch (TubeFullException e) {
+		catch(TubeFullException e){
 			e.printStackTrace();
 		}
 	}
-	
-	
 
 	@Override
-	public void registerWaiting(Robot robot) {
-		
-//		robots.add(robot);
-		if (robot1 == null) {
-			robot1 = robot;
-		} else if (robot2 == null) {
-			robot2 = robot;
-		} else if (robot3 == null) {
-			robot3 = robot;
+	public void registerWaiting(Robot robot) { // assumes won't be there
+		if (robot.isStrong()) {
+			robots.add(robot); 
 		} else {
+			robots.addLast(robot); // weak robot last as want more efficient delivery with highest priorities
 		}
 	}
 
 	@Override
 	public void deregisterWaiting(Robot robot) {
-		
-//		robots.add(robot);
-		if (robot1 == robot) {
-			robot1 = null;
-		} else if (robot2 == robot) {
-			robot2 = null;
-		} else if (robot3 == robot) {
-			robot3 = null;
-		} else {
-		}
-		
+		robots.remove(robot);
 	}
 
 }
