@@ -1,5 +1,7 @@
 package automail;
 
+import mailItems.MailItem;
+
 /**
  * a MailDelivery is used by the Robot to deliver mail once it has arrived at the correct location
  */

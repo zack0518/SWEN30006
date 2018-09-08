@@ -3,9 +3,14 @@ package automail;
 import exceptions.ExcessiveDeliveryException;
 import exceptions.ItemTooHeavyException;
 import exceptions.MailAlreadyDeliveredException;
+import mailItems.MailItem;
+import mailItems.PriorityMailItem;
 import exceptions.FragileItemBrokenException;
 import strategies.Automail;
 import strategies.IMailPool;
+import util.Building;
+import util.Clock;
+import util.robotSetting.RobotType;
 
 import java.util.stream.Stream;
 import java.io.FileReader;
@@ -21,8 +26,7 @@ import java.util.stream.Collectors;
  */
 public class Simulation {
 
-	private enum RobotType { Big, Careful, Standard, Weak };
-	
+
 	
     /** Constant for the mail generator */
     private static int MAIL_TO_CREATE;
@@ -93,7 +97,7 @@ public class Simulation {
         }
         Integer seed = seedMap.get(true);
         System.out.printf("Seed: %s%n", seed == null ? "null" : seed.toString());
-        Automail automail = new Automail(mailPool, new ReportDelivery());
+        Automail automail = new Automail(mailPool, new ReportDelivery(), robotTypes);
         MailGenerator mailGenerator = new MailGenerator(MAIL_TO_CREATE, automail.mailPool, seedMap, fragile);
         
         /** Initiate all the mail */

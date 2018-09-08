@@ -1,4 +1,4 @@
-package automail;
+package mailItems;
 
 import java.util.Map;
 import java.util.TreeMap;
@@ -17,7 +17,7 @@ public class MailItem {
     /** The time the mail item arrived */
     protected final int arrival_time;
     /** The weight in grams of the mail item */
-    protected final int weight;
+    public final int weight;
     /** Whether the mail item is fragile */
     protected final boolean fragile;
 

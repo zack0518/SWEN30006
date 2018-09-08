@@ -1,7 +1,8 @@
-package automail;
+package robots;
 
 import exceptions.FragileItemBrokenException;
 import exceptions.TubeFullException;
+import mailItems.MailItem;
 
 import java.util.Stack;
 
@@ -10,13 +11,14 @@ import java.util.Stack;
  */
 public class StorageTube {
 
-    public final int MAXIMUM_CAPACITY = 4;
+    public int MAXIMUM_CAPACITY;
     public Stack<MailItem> tube;
 
     /**
      * Constructor for the storage tube
      */
-    public StorageTube(){
+    public StorageTube(int capacity){
+    	MAXIMUM_CAPACITY = capacity;
         this.tube = new Stack<MailItem>();
     }
 

@@ -1,4 +1,4 @@
-package automail;
+package util;
 
 public class Building {
 	

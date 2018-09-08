@@ -1,4 +1,4 @@
-package automail;
+package mailItems;
 
 public class PriorityMailItem extends MailItem{
 	
