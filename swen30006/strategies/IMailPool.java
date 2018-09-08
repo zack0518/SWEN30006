@@ -2,6 +2,7 @@ package strategies;
 
 import automail.MailItem;
 import automail.Robot;
+import exceptions.FragileItemBrokenException;
 
 /**
  * addToPool is called when there are mail items newly arrived at the building to add to the MailPool or
@@ -20,7 +21,7 @@ public interface IMailPool {
     /**
      * load up any waiting robots with mailItems, if any.
      */
-	void step();
+	void step() throws FragileItemBrokenException;
 
 	/**
      * @param robot refers to a robot which has arrived back ready for more mailItems to deliver

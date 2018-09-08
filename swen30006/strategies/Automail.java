@@ -13,9 +13,6 @@ public class Automail {
     	    	
     	/** Initialize the MailPool */
     	
-    	//// Swap the next line for the one below
-//    	mailPool = new SimpleMailPool();
-    	mailPool = new MyMailPool();
     	this.mailPool = mailPool;
     	
         /** Initialize the RobotAction */

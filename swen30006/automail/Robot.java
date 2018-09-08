@@ -2,6 +2,7 @@ package automail;
 
 import exceptions.ExcessiveDeliveryException;
 import exceptions.ItemTooHeavyException;
+import exceptions.FragileItemBrokenException;
 import strategies.IMailPool;
 import java.util.Map;
 import java.util.TreeMap;
@@ -61,7 +62,7 @@ public class Robot {
      * This is called on every time step
      * @throws ExcessiveDeliveryException if robot delivers more than the capacity of the tube without refilling
      */
-    public void step() throws ExcessiveDeliveryException, ItemTooHeavyException{    	
+    public void step() throws ExcessiveDeliveryException, ItemTooHeavyException, FragileItemBrokenException {    	
     	switch(current_state) {
     		/** This state is triggered when the robot is returning to the mailroom after a delivery */
     		case RETURNING:
@@ -81,7 +82,6 @@ public class Robot {
                 	break;
                 }
     		case WAITING:
-                // System.out.println("Tube total size: "+tube.getTotalOfSizes());
                 /** If the StorageTube is ready and the Robot is waiting in the mailroom then start the delivery */
                 if(!tube.isEmpty() && receivedDispatch){
                 	receivedDispatch = false;
@@ -92,15 +92,14 @@ public class Robot {
                 }
                 break;
     		case DELIVERING:
-    			/** Check whether or not the call to return is triggered manually **/
     			if(current_floor == destination_floor){ // If already here drop off either way
                     /** Delivery complete, report this to the simulator! */
                     delivery.deliver(deliveryItem);
                     deliveryCounter++;
-                    if(deliveryCounter > 4){
+                    if(deliveryCounter > 4){  // Implies a simulation bug
                     	throw new ExcessiveDeliveryException();
                     }
-                    /** Check if want to return or if there are more items in the tube*/
+                    /** Check if want to return, i.e. if there are no more items in the tube*/
                     if(tube.isEmpty()){
                     	changeState(RobotState.RETURNING);
                     }
@@ -132,7 +131,8 @@ public class Robot {
      * Generic function that moves the robot towards the destination
      * @param destination the floor towards which the robot is moving
      */
-    private void moveTowards(int destination){
+    private void moveTowards(int destination) throws FragileItemBrokenException {
+        if (deliveryItem != null && deliveryItem.getFragile() || !tube.isEmpty() && tube.peek().getFragile()) throw new FragileItemBrokenException();
         if(current_floor < destination){
             current_floor++;
         }
@@ -141,17 +141,21 @@ public class Robot {
         }
     }
     
+    private String getIdTube() {
+    	return String.format("%s(%1d/%1d)", id, tube.getSize(), tube.MAXIMUM_CAPACITY);
+    }
+    
     /**
      * Prints out the change in state
      * @param nextState the state to which the robot is transitioning
      */
     private void changeState(RobotState nextState){
     	if (current_state != nextState) {
-            System.out.printf("T: %3d > %7s changed from %s to %s%n", Clock.Time(), id, current_state, nextState);
+            System.out.printf("T: %3d > %7s changed from %s to %s%n", Clock.Time(), getIdTube(), current_state, nextState);
     	}
     	current_state = nextState;
     	if(nextState == RobotState.DELIVERING){
-            System.out.printf("T: %3d > %7s-> [%s]%n", Clock.Time(), id, deliveryItem.toString());
+            System.out.printf("T: %3d > %7s-> [%s]%n", Clock.Time(), getIdTube(), deliveryItem.toString());
     	}
     }
 

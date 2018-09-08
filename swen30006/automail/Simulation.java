@@ -3,22 +3,29 @@ package automail;
 import exceptions.ExcessiveDeliveryException;
 import exceptions.ItemTooHeavyException;
 import exceptions.MailAlreadyDeliveredException;
+import exceptions.FragileItemBrokenException;
 import strategies.Automail;
 import strategies.IMailPool;
 
+import java.util.stream.Stream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * This class simulates the behaviour of AutoMail
  */
 public class Simulation {
 
+	private enum RobotType { Big, Careful, Standard, Weak };
+	
+	
     /** Constant for the mail generator */
-    private static final int MAIL_TO_CREATE = 180;
+    private static int MAIL_TO_CREATE;
     
 
     private static ArrayList<MailItem> MAIL_DELIVERED;
@@ -27,8 +34,14 @@ public class Simulation {
     public static void main(String[] args) throws IOException, InstantiationException, IllegalAccessException, ClassNotFoundException {
     	Properties automailProperties = new Properties();
 		// Default properties
-    	automailProperties.setProperty("Number_of_Robots", "3");
+    	// automailProperties.setProperty("Robots", "Big,Careful,Standard,Weak");
+    	automailProperties.setProperty("Robots", "Standard");
     	automailProperties.setProperty("MailPool", "strategies.SimpleMailPool");
+    	automailProperties.setProperty("Floors", "10");
+    	automailProperties.setProperty("Fragile", "false");
+    	automailProperties.setProperty("Mail_to_Create", "80");
+    	automailProperties.setProperty("Last_Delivery_Time", "100");
+
     	// Read properties
 		FileReader inStream = null;
 		try {
@@ -39,10 +52,28 @@ public class Simulation {
 	                inStream.close();
 	            }
 		}
-		int number_of_Robots = Integer.parseInt(automailProperties.getProperty("Number_of_Robots"));
+		// MailPool
 		String mailPoolName = automailProperties.getProperty("MailPool");
 		IMailPool mailPool = (IMailPool) Class.forName(mailPoolName).newInstance();
+		//Seed
 		String seedProp = automailProperties.getProperty("Seed");
+		// Floors
+		Building.FLOORS = Integer.parseInt(automailProperties.getProperty("Floors"));
+        System.out.printf("Floors: %5d%n", Building.FLOORS);
+        // Fragile
+        boolean fragile = Boolean.parseBoolean(automailProperties.getProperty("Fragile"));
+        System.out.printf("Fragile: %5b%n", fragile);
+		// Mail_to_Create
+		MAIL_TO_CREATE = Integer.parseInt(automailProperties.getProperty("Mail_to_Create"));
+        System.out.printf("Mail_to_Create: %5d%n", MAIL_TO_CREATE);
+		// Last_Delivery_Time
+		Clock.LAST_DELIVERY_TIME = Integer.parseInt(automailProperties.getProperty("Last_Delivery_Time"));
+        System.out.printf("Last_Delivery_Time: %5d%n", Clock.LAST_DELIVERY_TIME);
+		// Robots
+		String robotsProp = automailProperties.getProperty("Robots");
+		List<RobotType> robotTypes = Stream.of(robotsProp.split(",")).map(RobotType::valueOf).collect(Collectors.toList());
+		System.out.print("Robots: "); System.out.println(robotTypes);
+
 		// End properties
 		
         MAIL_DELIVERED = new ArrayList<MailItem>();
@@ -63,7 +94,7 @@ public class Simulation {
         Integer seed = seedMap.get(true);
         System.out.printf("Seed: %s%n", seed == null ? "null" : seed.toString());
         Automail automail = new Automail(mailPool, new ReportDelivery());
-        MailGenerator mailGenerator = new MailGenerator(MAIL_TO_CREATE, automail.mailPool, seedMap);
+        MailGenerator mailGenerator = new MailGenerator(MAIL_TO_CREATE, automail.mailPool, seedMap, fragile);
         
         /** Initiate all the mail */
         mailGenerator.generateAllMail();
@@ -71,10 +102,10 @@ public class Simulation {
         while(MAIL_DELIVERED.size() != mailGenerator.MAIL_TO_CREATE) {
         	//System.out.println("-- Step: "+Clock.Time());
             /* priority = */ mailGenerator.step();
-            automail.mailPool.step();
             try {
+                automail.mailPool.step();
 				for (int i=0; i<3; i++) automail.robot[i].step();
-			} catch (ExcessiveDeliveryException|ItemTooHeavyException e) {
+			} catch (ExcessiveDeliveryException|ItemTooHeavyException|FragileItemBrokenException e) {
 				e.printStackTrace();
 				System.out.println("Simulation unable to complete.");
 				System.exit(0);
@@ -93,8 +124,6 @@ public class Simulation {
     			MAIL_DELIVERED.add(deliveryItem);
     			// Calculate delivery score
     			total_score += calculateDeliveryScore(deliveryItem);
-    			
-    			System.out.println("simulation class----------the score is" + calculateDeliveryScore(deliveryItem));
     		}
     		else{
     			try {

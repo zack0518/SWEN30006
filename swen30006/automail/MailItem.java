@@ -18,6 +18,8 @@ public class MailItem {
     protected final int arrival_time;
     /** The weight in grams of the mail item */
     protected final int weight;
+    /** Whether the mail item is fragile */
+    protected final boolean fragile;
 
     /**
      * Constructor for a MailItem
@@ -25,16 +27,17 @@ public class MailItem {
      * @param arrival_time the time that the mail arrived
      * @param weight the weight of this mail item
      */
-    public MailItem(int dest_floor, int arrival_time, int weight){
+    public MailItem(int dest_floor, int arrival_time, int weight, boolean fragile){
         this.destination_floor = dest_floor;
         this.id = String.valueOf(hashCode());
         this.arrival_time = arrival_time;
         this.weight = weight;
+        this.fragile = fragile;
     }
 
     @Override
     public String toString(){
-        return String.format("Mail Item:: ID: %6s | Arrival: %4d | Destination: %2d | Weight: %4d", id, arrival_time, destination_floor, weight );
+        return String.format("Mail Item:: ID: %6s | Arrival: %4d | Destination: %2d | Weight: %4d | Fragile: %3s", id, arrival_time, destination_floor, weight, (fragile?"yes":"no") );
     }
 
     /**
@@ -67,6 +70,14 @@ public class MailItem {
     */
    public int getWeight(){
        return weight;
+   }
+   
+   /**
+    *
+    * @return whether the mail item is fragile
+    */
+   public boolean getFragile(){
+       return fragile;
    }
    
 	static private int count = 0;

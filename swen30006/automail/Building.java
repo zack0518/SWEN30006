@@ -4,7 +4,7 @@ public class Building {
 	
 	
     /** The number of floors in the building **/
-    public static final int FLOORS = 14; // 9;
+    public static int FLOORS;
     
     /** Represents the ground floor location */
     public static final int LOWEST_FLOOR = 1;

@@ -1,6 +1,6 @@
 package automail;
 
-// import exceptions.RobotNotInMailRoomException;
+import exceptions.FragileItemBrokenException;
 import exceptions.TubeFullException;
 
 import java.util.Stack;
@@ -46,9 +46,15 @@ public class StorageTube {
      * @param item The item being added
      * @throws TubeFullException thrown if an item is added which exceeds the capacity
      */
-    public void addItem(MailItem item) throws TubeFullException {
+    public void addItem(MailItem item) throws TubeFullException, FragileItemBrokenException {
         if(tube.size() < MAXIMUM_CAPACITY){
-        	tube.add(item);
+        	if (tube.isEmpty()) {
+        		tube.add(item);
+        	} else if (item.getFragile() || tube.peek().getFragile()) {
+        		throw new FragileItemBrokenException();
+        	} else {
+        		tube.add(item);
+        	}
         } else {
             throw new TubeFullException();
         }
